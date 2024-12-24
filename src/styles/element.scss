@@ -1,0 +1,25 @@
+// 先引入element-plus的样式
+@use "element-plus/theme-chalk/src/index.scss" as *;
+
+// 覆盖主题色变量
+@forward "element-plus/theme-chalk/src/common/var.scss" with (
+  $colors: (
+    "primary": (
+      "base": #80b5d8,
+    ),
+  )
+);
+
+// 其他自定义样式
+.el-button {
+  &.el-button--primary {
+    background-color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+
+    &:hover,
+    &:focus {
+      background-color: var(--el-color-primary-light-3);
+      border-color: var(--el-color-primary-light-3);
+    }
+  }
+}

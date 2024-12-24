@@ -1,30 +1,27 @@
 <template>
-  <nav>
-    <router-link to="/">Home</router-link> |
-    <router-link to="/about">About</router-link>
-  </nav>
   <router-view />
 </template>
+<script setup lang="ts">
+import { onMounted } from "vue";
 
-<style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
-
-nav {
-  padding: 30px;
-
-  a {
-    font-weight: bold;
-    color: #2c3e50;
-
-    &.router-link-exact-active {
-      color: #42b983;
+onMounted(() => {
+  window.addEventListener("error", (e) => {
+    if (
+      e.message ===
+      "ResizeObserver loop completed with undelivered notifications."
+    ) {
+      e.stopImmediatePropagation();
     }
-  }
+  });
+});
+</script>
+<style lang="scss">
+:root {
+  --el-color-primary: #91bddf;
+  --el-button-border-color: #91bddf;
+}
+:deep(.el-button) {
+  height: 32px;
+  border: none;
 }
 </style>
