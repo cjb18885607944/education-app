@@ -9,7 +9,7 @@
     class="person-dialog"
   >
     <template #header>
-      <div class="text-[24px] text-text-title">添加人员</div>
+      <div class="text-[24px] text-text-title">{{ title }}</div>
     </template>
     <el-form
       ref="formRef"
@@ -18,37 +18,34 @@
       :rules="rules"
       class="w-[620px] mx-auto py-8"
     >
-      <el-form-item label="人员姓名" prop="name" required>
+      <el-form-item label="识别计划名称" prop="name" required>
         <el-input v-model="form.name" placeholder="请输入" />
       </el-form-item>
-
-      <el-form-item label="学号/工号" prop="number" required>
-        <el-input v-model="form.number" placeholder="请输入" />
+      <el-form-item label="人脸库" prop="faceLibraryId" required>
+        <el-select v-model="form.faceLibraryId" placeholder="全部" clearable>
+          <el-option
+            v-for="item in faceLibrary"
+            :key="item.modelDataId"
+            :label="item.name"
+            :value="item.modelDataId"
+          />
+        </el-select>
       </el-form-item>
-
-      <el-form-item label="头像" prop="avatar" required>
-        <div
-          class="w-[120px] h-[120px] border border-dashed border-[#E5E6E8] rounded flex items-center justify-center cursor-pointer"
-          @click="handleUpload"
-        >
-          <template v-if="!form.avatar">
-            <div class="flex flex-col items-center">
-              <el-icon class="text-[24px] text-[#C9CDD4]"><Plus /></el-icon>
-            </div>
-          </template>
-          <img v-else :src="form.avatar" class="w-full h-full object-cover" />
-        </div>
+      <el-form-item label="识别设备" prop="equipmentId" required>
+        <el-select v-model="form.equipmentId" placeholder="全部" clearable>
+          <el-option
+            v-for="item in deviceList"
+            :key="item.modelDataId"
+            :label="item.name"
+            :value="item.modelDataId"
+          />
+        </el-select>
       </el-form-item>
     </el-form>
 
     <template #footer>
       <div class="flex justify-end gap-3 border-t pt-4">
-        <el-button
-          type="primary"
-          class="!w-[140px]"
-          :loading="loading"
-          @click="handleSubmit"
-        >
+        <el-button type="primary" class="!w-[140px]" @click="handleSubmit">
           保存
         </el-button>
         <el-button
@@ -63,57 +60,133 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, withDefaults, defineProps, defineEmits } from "vue";
-import type { FormInstance } from "element-plus";
+import {
+  ref,
+  withDefaults,
+  defineProps,
+  defineEmits,
+  watch,
+  nextTick,
+} from "vue";
+import { ElMessage, FormInstance } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
+import type { UploadProps, UploadUserFile } from "element-plus";
+import { equipmentApi, faceLibraryApi, recognizePlanApi } from "@/api";
 
 interface Props {
   show: boolean;
   title?: string;
   editData?: any;
 }
-
 const props = withDefaults(defineProps<Props>(), {
   title: "添加人员",
   editData: () => ({}),
 });
-
 const emit = defineEmits(["update:show", "success"]);
 
 const formRef = ref<FormInstance>();
-const loading = ref(false);
 
-const form = reactive({
+const form = ref({
+  modelDataId: "",
   name: "",
-  number: "",
-  avatar: "",
+  faceLibraryId: "",
+  equipmentId: "",
 });
 
 const rules = {
   name: [{ required: true, message: "请输入人员姓名", trigger: "blur" }],
-  number: [{ required: true, message: "请输入学号/工号", trigger: "blur" }],
-  avatar: [{ required: true, message: "请上传头像", trigger: "change" }],
+  equipmentId: [{ required: true, message: "请选择人脸库", trigger: "blur" }],
+  faceLibraryId: [
+    { required: true, message: "请选择识别设备", trigger: "change" },
+  ],
+};
+
+watch(
+  () => props.show,
+  (newValue) => {
+    if (newValue) {
+      getFaceLibrary();
+      getDeviceList();
+      if (props.editData.modelDataId) {
+        const { modelDataId, name, faceLibraryId, equipmentId } =
+          props.editData;
+        form.value = {
+          modelDataId,
+          name,
+          faceLibraryId,
+          equipmentId,
+        };
+      }
+      nextTick(() => {
+        formRef.value.clearValidate();
+      });
+    } else {
+      form.value = {
+        modelDataId: "",
+        name: "",
+        faceLibraryId: "",
+        equipmentId: "",
+      };
+    }
+  }
+);
+let faceLibrary = ref([]);
+let deviceList = ref([]);
+const getFaceLibrary = async () => {
+  try {
+    let params = {
+      pageNo: 1,
+      pageSize: 1000,
+    };
+    const res = await faceLibraryApi.getList(params);
+    if (res.code === "0" && res.data.list.length) {
+      faceLibrary.value = res.data.list;
+    }
+  } catch (e) {
+    console.log(e);
+  }
+};
+const getDeviceList = async () => {
+  try {
+    let params = {
+      name: "",
+      ip: "",
+      status: "",
+      equipmengId: "",
+      serialNumber: "",
+      pageNo: 1,
+      pageSize: 1000,
+    };
+    const res = await equipmentApi.getList(params);
+    if (res.code === "0" && res.data.list.length) {
+      deviceList.value = res.data.list;
+    }
+  } catch (e) {
+    console.log(e);
+  }
 };
 
 const handleClose = () => {
   emit("update:show", false);
 };
 
-const handleUpload = () => {
-  // TODO: 实现上传逻辑
-};
-
 const handleSubmit = async () => {
   if (!formRef.value) return;
 
   try {
-    loading.value = true;
     await formRef.value.validate();
-    // TODO: 调用保存接口
-    emit("success");
-    handleClose();
-  } finally {
-    loading.value = false;
+    try {
+      const res = await recognizePlanApi.addOrUpdate(form.value);
+      if (res.code === "0") {
+        ElMessage.success("添加成功!");
+        emit("success");
+        handleClose();
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  } catch (e) {
+    console.log(e);
   }
 };
 </script>

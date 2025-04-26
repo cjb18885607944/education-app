@@ -10,6 +10,7 @@ export interface RouteConfig {
     title: string;
     breadcrumb: string[];
     showNavigate: boolean;
+    requiresAuth?: boolean;
   };
   icon?: string;
   activeIcon?: string;
@@ -17,16 +18,27 @@ export interface RouteConfig {
 
 export const routerConfig: RouteConfig[] = [
   {
+    path: "/login",
+    name: "Login",
+    component: () => import("@/views/Login/LoginPage.vue"),
+    meta: {
+      title: "登录",
+      breadcrumb: ["登录"],
+      showNavigate: false,
+      requiresAuth: false,
+    },
+  },
+  {
     path: "/DeviceManage",
     name: "DeviceManage",
     component: () => import("@/views/DeviceManage/DeviceManage.vue"),
     meta: {
       title: "设备管理",
       breadcrumb: ["设备管理", "考勤设备管理"],
+      requiresAuth: true,
       showNavigate: true,
     },
-    icon: "bg-[url(@/assets/images/icon_device_normal.png)]",
-    activeIcon: "bg-[url(@/assets/images/icon_device_active.png)]",
+    icon: require("@/assets/images/icon_device_normal.svg"),
   },
   {
     path: "/DeviceManage/add",
@@ -34,7 +46,8 @@ export const routerConfig: RouteConfig[] = [
     component: () => import("@/views/DeviceManage/AddDevice.vue"),
     meta: {
       title: "添加设备",
-      breadcrumb: ["设备管理", "添加设备"],
+      breadcrumb: ["设备管理"],
+      requiresAuth: true,
       showNavigate: false,
     },
   },
@@ -45,18 +58,19 @@ export const routerConfig: RouteConfig[] = [
     meta: {
       title: "人脸库管理",
       breadcrumb: ["人脸库管理"],
+      requiresAuth: true,
       showNavigate: true,
     },
-    icon: "bg-[url(@/assets/images/icon_face_normal.png)]",
-    activeIcon: "bg-[url(@/assets/images/icon_face_active.png)]",
+    icon: require("@/assets/images/icon_face_normal.svg"),
   },
   {
     path: "/PersonManage/class",
     name: "ClassManage",
-    component: () => import("@/views/PersonManage/ClassManage.vue"),
+    component: () => import("@/views/PersonManage/components/ClassManage.vue"),
     meta: {
       title: "人员管理",
       breadcrumb: ["人脸库管理", "人员管理"],
+      requiresAuth: true,
       showNavigate: false,
     },
   },
@@ -68,10 +82,10 @@ export const routerConfig: RouteConfig[] = [
     meta: {
       title: "考勤结果",
       breadcrumb: ["考勤结果"],
+      requiresAuth: true,
       showNavigate: true,
     },
-    icon: "bg-[url(@/assets/images/icon_atten_normal.png)]",
-    activeIcon: "bg-[url(@/assets/images/icon_atten_active.png)]",
+    icon: require("@/assets/images/icon_atten_normal.svg"),
   },
   {
     path: "/AttendanceDetail",
@@ -81,6 +95,7 @@ export const routerConfig: RouteConfig[] = [
     meta: {
       title: "考勤结果",
       breadcrumb: ["考勤结果"],
+      requiresAuth: true,
       showNavigate: false,
     },
   },

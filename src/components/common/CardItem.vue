@@ -1,7 +1,8 @@
 <!-- components/common/CardItem.vue -->
 <template>
   <div
-    class="relative w-[296px] h-[120px] rounded-[4px] cursor-pointer overflow-hidden group shadow-[0px_0px_4px_0px_rgba(0,0,0,0.1)]"
+    class="relative h-full rounded-[4px] cursor-pointer overflow-hidden group shadow-[0px_0px_4px_0px_rgba(0,0,0,0.1)]"
+    @click="handleDetail"
   >
     <!-- 渐变背景 -->
     <div
@@ -9,8 +10,8 @@
       style="
         background: linear-gradient(
           180deg,
-          rgb(220, 236, 249),
-          rgb(145, 189, 223) 99.237%
+          rgb(var(--color-primary) / 0.2),
+          rgb(var(--color-primary)) 100%
         );
       "
     ></div>
@@ -23,14 +24,17 @@
     />
 
     <!-- 勾选图标 -->
-    <div class="absolute right-0 top-0 h-[37px] w-[47px] overflow-hidden">
+    <div
+      class="absolute right-0 top-0 h-[37px] w-[47px] overflow-hidden z-20"
+      @click.stop="handleSelect()"
+    >
       <div
         class="absolute right-0 top-0 h-[64px] w-[64px] transform translate-x-[28px] translate-y-[-39px] rotate-[38deg] group-hover:bg-primary"
         :class="selected ? 'bg-primary' : 'bg-white'"
       ></div>
       <el-icon
         class="absolute right-1 top-1.5 z-10 transform group-hover:text-white"
-        :class="selected || hover ? 'text-white' : 'text-primary'"
+        :class="selected ? 'text-white' : 'text-primary'"
       >
         <Check />
       </el-icon>
@@ -49,7 +53,7 @@
       class="absolute left-0 right-0 bottom-0 h-[28px] bg-[rgba(255,255,255,.12)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20"
     >
       <div
-        class="h-full flex-1 flex items-center justify-center cursor-pointer hover:bg-[rgba(0,0,0,0.1)]"
+        class="h-full flex-1 flex items-center justify-center cursor-pointer hover:bg-[rgba(255,255,255,0.2)]"
         @click.stop="handleEdit"
       >
         <img
@@ -60,8 +64,20 @@
         <span class="text-white text-sm">编辑</span>
       </div>
       <div class="w-[1px] h-3 bg-white opacity-30"></div>
+      <!-- <div
+        class="h-full flex-1 flex items-center justify-center cursor-pointer hover:bg-[rgba(255,255,255,0.2)]"
+        @click.stop="handleDetail"
+      >
+        <img
+          src="@/assets/images/icon_atten_active.png"
+          class="w-4 h-4 mr-4"
+          alt=""
+        />
+        <span class="text-white text-sm">详情</span>
+      </div> -->
+      <div class="w-[1px] h-3 bg-white opacity-30"></div>
       <div
-        class="h-full flex flex-1 items-center justify-center cursor-pointer hover:bg-[rgba(0,0,0,0.1)]"
+        class="h-full flex flex-1 items-center justify-center cursor-pointer hover:bg-[rgba(255,255,255,0.2)]"
         @click.stop="handleDelete"
       >
         <img
@@ -88,7 +104,7 @@ const props = withDefaults(defineProps<Props>(), {
   selected: false,
 });
 
-const emit = defineEmits(["select", "edit", "delete"]);
+const emit = defineEmits(["select", "edit", "delete", "detail"]);
 
 const handleSelect = () => {
   emit("select");
@@ -96,6 +112,10 @@ const handleSelect = () => {
 
 const handleEdit = () => {
   emit("edit");
+};
+
+const handleDetail = () => {
+  emit("detail");
 };
 
 const handleDelete = () => {

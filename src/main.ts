@@ -4,6 +4,7 @@ import router from "./router";
 import store from "./store";
 import "element-plus/dist/index.css";
 import "./styles/main.scss";
+import "./styles/element.scss";
 import "element-plus/dist/index.css";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import ElementPlus from "element-plus";

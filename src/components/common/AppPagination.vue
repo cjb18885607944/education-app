@@ -44,7 +44,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  pageSizes: () => [10, 20, 50],
+  pageSizes: () => [5, 10, 20, 50],
 });
 
 const emit = defineEmits([

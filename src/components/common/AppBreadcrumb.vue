@@ -5,10 +5,15 @@
     :class="hasBorder ? 'border-b border-gap' : ''"
     :style="{ height: props.height + 'px' }"
   >
-    <div
+    <!-- <div
       class="w-4 h-4 mr-4 bg-[url(@/assets/images/icon_back.png)] bg-center bg-no-repeat cursor-pointer"
       @click="router.back()"
-    ></div>
+    ></div> -->
+    <el-icon
+      class="cursor-pointer mr-4 text-[rgb(var(--color-primary))] p-[2px] w-4 h-4 text-[12px] border rounded-full border-[rgb(var(--color-primary))]"
+      @click="router.back()"
+      ><ArrowLeft
+    /></el-icon>
     <el-breadcrumb separator="/">
       <template v-for="(item, index) in breadcrumbItems" :key="index">
         <el-breadcrumb-item :to="item.path">
@@ -31,7 +36,7 @@
 <script setup lang="ts">
 import { computed, withDefaults, defineProps } from "vue";
 import { useRoute, useRouter } from "vue-router";
-
+import { ArrowLeft } from "@element-plus/icons-vue";
 interface Props {
   height?: number;
   className?: string; // 班级名称

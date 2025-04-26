@@ -10,7 +10,67 @@ body {
   @apply m-0 p-0;
   font-family: "Microsoft YaHei", sans-serif;
   height: 100%;
+  contain: size layout;
+  overflow: overlay; /* 或者 auto */
+  overflow-x: hidden;
 }
 #app {
   height: 100%;
+}
+
+:root {
+  /* 主色 */
+  --color-primary: 53 208 208; /* #35D0D0 */
+  --color-secondary: 78 131 131; /* #4E8383 */
+  /* 旧版主色：--color-primary: 145 189 223    #91BDDF */
+
+  /* 背景色 */
+  --color-bg-main: 254 255 253; /* #FEFFFD */
+  --color-bg-light: 246 250 253; /* #F6FAFD */
+  --color-card-bg: 53 208 208; /* #35D0D0 */
+  --color-card-light: 145 189 223; /* #91BDDF */
+  /* 旧版背景色：
+    --color-bg-main: 251 253 253      #fbfdfd
+    --color-bg-light: 246 250 253     #F6FAFD
+    --color-card-bg: 220 236 249      #DCECF9
+    --color-card-light: 145 189 223   #91BDDF
+  */
+
+  /* 文字色 */
+  --color-text-main: 119 124 128; /* #4E8383 */
+  --color-text-title: 105 110 112; /* #1D1D1D */
+  --color-text-content: 119 124 128; /* #1D1D1D */
+  --color-text-weak: 27 39 49; /* #1B2731 */
+  /* 旧版文字色：
+    --color-text-main: 137 158 175     #899EAF
+    --color-text-title: 83 88 92       #53585C
+    --color-text-content: 0 0 0        #000000
+    --color-text-weak: 27 39 49        #1B2731
+  */
+
+  /* 边框色 */
+  --color-border-gap: 217 217 217; /* #D9D9D9 */
+  /* 旧版边框色：--color-border-gap: 226 230 233   #E2E6E9 */
+
+  /* 表格相关 */
+  --color-table-header: 116 124 131; /* #747C83 */
+  --color-table-checkbox: 161 169 175; /* #A1A9AF */
+  /* 旧版表格色：
+    --color-table-header: 116 124 131   #747C83
+    --color-table-checkbox: 161 169 175 #A1A9AF
+  */
+
+  /* 菜单相关 */
+  --color-menu-active: 255 255 255; /* #FFFFFF */
+  /* 旧版菜单色：--color-menu-active: 255 255 255   #FFFFFF */
+
+  /* 按钮相关 */
+  --color-btn-secondary: 201 210 217; /* #C9D2D9 */
+  /* 旧版按钮色：--color-btn-secondary: 201 210 217  #C9D2D9 */
+
+  /* 渐变色 - 旧版保留 */
+  /* 
+  --color-gradient-from: 0 105 186      #0069BA
+  --color-gradient-to: 0 105 186        #0069BA
+  */
 }

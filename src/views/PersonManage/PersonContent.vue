@@ -5,11 +5,11 @@
       <!-- Tab切换 -->
       <el-tabs v-model="activeTab" class="w-full h-full flex">
         <el-tab-pane
-          label="人员管理"
+          label="人脸库管理"
           name="personnel"
           class="flex-1 flex flex-col h-full"
         >
-          <PersonManage />
+          <LibraryManage />
         </el-tab-pane>
 
         <el-tab-pane
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import MainLayout from "@/components/common/MainLayout.vue";
-import PersonManage from "./components/PersonManage.vue";
+import LibraryManage from "./components/LibraryManage.vue";
 import PlanManage from "./components/PlanManage.vue";
 
 // Tab 切换

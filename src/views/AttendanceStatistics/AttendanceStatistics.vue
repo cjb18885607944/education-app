@@ -8,23 +8,33 @@
       </h2>
 
       <!-- 搜索表单 -->
-      <div class="flex justify-between border-b border-b-border-gap pb-6">
-        <div class="w-[300px]">
-          <div class="flex flex-col">
-            <span class="mb-1 text-sm text-text-content">人脸库名称</span>
-            <el-input
-              v-model="queryParams.queryParams"
-              placeholder="请输入人脸库名称"
-              clearable
-              class="!h-[32px]"
-            />
-          </div>
+      <div class="grid lg:grid-cols-4 gap-x-10">
+        <div class="flex flex-col">
+          <span class="mb-1 text-sm text-text-content">人脸库名称</span>
+          <el-input
+            v-model="queryParams.faceLibraryName"
+            placeholder="请输入人脸库名称"
+            clearable
+            class="!h-[32px]"
+          />
         </div>
-        <div class="flex mt-6 float-right">
+        <div class="flex flex-col">
+          <span class="mb-1 text-sm text-text-content">考勤日期</span>
+          <el-date-picker
+            v-model="queryParams.attendanceDate"
+            type="date"
+            placeholder="Pick a day"
+            format="YYYY/MM/DD"
+            value-format="YYYY-MM-DD"
+            :disabled-date="disabledDate"
+          />
+        </div>
+        <div class="flex flex-col"></div>
+        <div class="flex justify-end items-center mt-6">
           <el-button
             type="primary"
             class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-primary"
-            @click="handleQuery"
+            @click="handleSearch"
           >
             查询
           </el-button>
@@ -47,8 +57,8 @@
           style="
             background: linear-gradient(
               180deg,
-              rgb(220, 236, 249),
-              rgb(145, 189, 223) 99.237%
+              rgb(var(--color-primary) / 0.2),
+              rgb(var(--color-primary)) 100%
             );
           "
         >
@@ -61,26 +71,25 @@
             class="h-6 flex flex-1 items-center justify-evenly font-bold text-[24px] text-white border-r border-r-[#ffffff]"
           >
             <div class="">人脸库总数</div>
-            <div class="">15</div>
+            <div class="">{{ statisticsData.faceLibraryNum || 0 }}</div>
           </div>
           <div
             class="h-6 flex flex-1 items-center justify-evenly font-bold text-[24px] text-white border-r border-r-[#ffffff]"
           >
             <div class="">应到人数</div>
-            <div class="">315</div>
+            <div class="">{{ statisticsData.totalNum || 0 }}</div>
           </div>
           <div
             class="h-6 flex flex-1 items-center justify-evenly font-bold text-[24px] text-white"
           >
             <div class="">实到人数</div>
-            <div class="">165</div>
+            <div class="">{{ statisticsData.actualNum || 0 }}</div>
           </div>
         </div>
       </div>
       <div class="flex-1 bg-bg-main mt-6">
         <el-table
           stripe
-          v-loading="loading"
           :data="tableData"
           style="width: 100%"
           :header-cell-style="{
@@ -95,10 +104,14 @@
           }"
         >
           <el-table-column type="index" width="55" label="序号" />
-          <el-table-column prop="name" label="人脸库名称" min-width="200" />
-          <el-table-column prop="name" label="应到人数" min-width="200">
+          <el-table-column
+            prop="faceLibraryName"
+            label="人脸库名称"
+            min-width="200"
+          />
+          <el-table-column prop="totalNum" label="应到人数" min-width="200">
           </el-table-column>
-          <el-table-column prop="name" label="实到人数" min-width="200">
+          <el-table-column prop="actualNum" label="实到人数" min-width="200">
           </el-table-column>
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
@@ -127,27 +140,92 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import MainLayout from "@/components/common/MainLayout.vue";
 import AppPagination from "@/components/common/AppPagination.vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { attendanceStatistics } from "@/api";
+import moment from "moment";
+
 const router = useRouter();
 
-const queryParams = {
-  faceName: "",
+onMounted(() => {
+  queryParams.value.attendanceDate = moment().format("yyyy-MM-DD");
+  handleSearch();
+});
+const disabledDate = (time: Date) => {
+  return time.getTime() > Date.now();
+};
+const queryParams = ref({
+  attendanceDate: "",
+  faceLibraryName: "",
   pageNo: 1,
   pageSize: 10,
-};
-const total = ref(100);
+});
+const total = ref(0);
 
-const tableData = ref([
-  { id: 1, name: "设备名称", status: "离线", ip: "192.168.1.2", port: "8000" },
-  { id: 2, name: "设备名称", status: "在线", ip: "192.168.1.2", port: "8782" },
-]);
+const tableData = ref([]);
+const statisticsData = ref({
+  faceLibraryNum: 0,
+  totalNum: 0,
+  actualNum: 0,
+});
 // 表格操作
 const handleDetail = (row) => {
-  ElMessage.success(`查看详情：${row.name}`);
-  router.push("/AttendanceDetail");
+  router.push({
+    path: "/AttendanceDetail",
+    query: {
+      id: row.faceLibraryId,
+      name: row.faceLibraryName,
+    },
+  });
+};
+const handleSearchStatistics = async () => {
+  try {
+    let params = {
+      attendanceDate: queryParams.value.attendanceDate,
+    };
+    const res = await attendanceStatistics.StuAttSum(params);
+    statisticsData.value = res.data || {};
+  } catch (e) {
+    console.log(e);
+  }
+};
+const handleSearch = async () => {
+  try {
+    handleSearchStatistics();
+    const res = await attendanceStatistics.attPage(queryParams.value);
+    tableData.value = res.data?.list;
+    total.value = res.data?.total;
+  } catch (e) {
+    console.log(e);
+  }
+};
+// 重置
+const handleReset = () => {
+  queryParams.value = {
+    attendanceDate: moment().format("yyyy-MM-DD"),
+    faceLibraryName: "",
+    pageNo: 1,
+    pageSize: 10,
+  };
+  handleSearch();
+};
+// 分页相关
+const handleSizeChange = (val: number) => {
+  queryParams.value.pageSize = val;
+  queryParams.value.pageNo = 1;
+  handleSearch();
+};
+
+const handleCurrentChange = (val: number) => {
+  queryParams.value.pageNo = val;
+  handleSearch();
 };
 </script>
+<style scoped>
+:deep(.el-date-editor.el-input, .el-date-editor.el-input__wrapper) {
+  width: 100%;
+}
+</style>

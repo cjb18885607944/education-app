@@ -1,7 +1,7 @@
 <template>
   <div class="flex-1 flex flex-col h-full">
     <!-- 搜索表单 -->
-    <div class="flex justify-between mb-6">
+    <div class="grid lg:grid-cols-2 gap-x-4 gap-y-5 mb-6">
       <div class="w-[300px]">
         <div class="flex flex-col">
           <span class="mb-1 text-sm text-text-content">学号/工号</span>
@@ -13,11 +13,11 @@
           />
         </div>
       </div>
-      <div class="flex mt-6 float-right">
+      <div class="flex justify-end items-center mt-6">
         <el-button
           type="primary"
           class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-primary"
-          @click="handleQuery"
+          @click="handleSearch"
         >
           查询
         </el-button>
@@ -44,7 +44,7 @@
       <button
         class="flex items-center h-full text-text-main hover:text-primary text-xs"
         :class="{ 'opacity-50 cursor-not-allowed': !hasSelected }"
-        @click="handleBatchDelete"
+        @click="handleBatchDelete(selectedIds)"
       >
         <div
           class="w-[18px] h-[18px] mr-2 bg-[url(@/assets/images/icon_delete.png)] bg-no-repeat bg-center bg-contain"
@@ -54,80 +54,74 @@
     </div>
 
     <!-- 卡片列表容器 -->
-    <div class="flex-1 bg-bg-main min-h-0 overflow-auto">
-      <div class="pb-6">
-        <div
-          class="grid gap-6"
-          style="
-            grid-template-columns: repeat(auto-fill, 296px);
-            justify-content: space-between;
-          "
-        >
-          <CardItem
-            v-for="item in personnelList"
-            :key="item.id"
-            :title="item.title"
-            :count="item.count"
-            :selected="selectedIds.includes(item.id)"
-            @select="toggleSelect(item.id)"
-            @edit="handleEditItem(item)"
-            @delete="handleDeleteItem(item)"
-          />
-        </div>
+    <div class="flex-1 bg-bg-main min-h-0 overflow-auto p-6">
+      <div class="grid auto-rows-[120px] gap-6" :class="gridClass">
+        <CardItem
+          v-for="item in personnelList"
+          :key="item.modelDataId"
+          :title="item.name"
+          :count="item.studentNum"
+          :selected="selectedIds.includes(item.modelDataId)"
+          @select="toggleSelect(item.modelDataId)"
+          @edit="handleEditItem(item)"
+          @detail="handleDetailItem(item)"
+          @delete="handleBatchDelete([item.modelDataId])"
+        />
       </div>
     </div>
-
-    <!-- 分页 -->
-    <div class="h-[52px] flex items-center justify-between border-t border-gap">
-      <AppPagination
-        v-model:current-page="queryParams.pageNo"
-        v-model:page-size="queryParams.pageSize"
-        :total="total"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
-    </div>
+    <LibraryDialog
+      v-model:show="dialogVisible"
+      :title="dialogTitle"
+      :editData="currentLibrary"
+      @success="handleDialogSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import AppPagination from "@/components/common/AppPagination.vue";
 import CardItem from "@/components/common/CardItem.vue";
+import { faceLibraryApi } from "@/api/index";
+import LibraryDialog from "./LibraryDialog.vue";
+import { arrayToUrlParams } from "@/utils";
 
 const router = useRouter();
-
+// dialog
+const dialogVisible = ref(false);
+const dialogTitle = ref("");
+const currentLibrary = ref({});
+onMounted(() => {
+  handleSearch();
+});
+const gridClass = computed(() => {
+  return personnelList.value.length < 4
+    ? "grid-cols-4" // 少于4个时均分为4列
+    : "grid-cols-[repeat(auto-fit,minmax(280px,1fr))]"; // 大于等于4个时自适应
+});
 // 查询参数
 const queryParams = ref({
-  studentId: "",
+  studentNo: "",
   pageNo: 1,
-  pageSize: 10,
+  pageSize: 1000,
 });
-
-// 总数
-const total = ref(800);
-
 // 选中项
-const selectedIds = ref<number[]>([]);
+const selectedIds = ref<string[]>([]);
 const hasSelected = computed(() => selectedIds.value.length > 0);
-
 // 模拟数据
-const personnelList = ref([
-  { id: 1, title: "XXXXXXXX学校三年级一班1", count: 56 },
-  { id: 2, title: "XXXXXXXX学校三年级二班2", count: 54 },
-  { id: 3, title: "XXXXXXXX学校三年级三班3", count: 52 },
-  { id: 3, title: "XXXXXXXX学校三年级三班4", count: 52 },
-  { id: 3, title: "XXXXXXXX学校三年级三班5", count: 52 },
-  { id: 3, title: "XXXXXXXX学校三年级三班6", count: 52 },
-  // ... 更多数据
-]);
-
+const personnelList = ref([]);
 // 查询
-const handleSearch = () => {
-  queryParams.value.pageNo = 1;
-  // TODO: 加载数据
+const handleSearch = async () => {
+  try {
+    const res = await faceLibraryApi.getList(queryParams.value);
+    if (res.code === "0" && res.data.list.length) {
+      personnelList.value = res.data.list;
+    }
+  } catch (e) {
+    console.log(e);
+  }
 };
 
 // 重置
@@ -149,46 +143,59 @@ const toggleSelect = (id: number) => {
 // 新增
 const handleAdd = () => {
   // TODO: 跳转到新增页面
+  dialogTitle.value = "新增人脸库";
+  currentLibrary.value = {};
+  dialogVisible.value = true;
 };
 
 // 批量删除
-const handleBatchDelete = () => {
-  if (!selectedIds.value.length) return;
-  ElMessageBox.confirm("确定要删除选中的人脸库吗？", "警告", {
+const handleBatchDelete = (item: string[]) => {
+  ElMessageBox.confirm("确定要删除选中的人脸库吗？", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning",
-  }).then(() => {
-    ElMessage.success("删除成功");
-    selectedIds.value = [];
-  });
+  })
+    .then(async () => {
+      try {
+        let params = "";
+        params = arrayToUrlParams("idList", item);
+        const res = await faceLibraryApi.delete(params);
+        if (res.code === "0") {
+          ElMessage.success(`删除成功!`);
+          handleSearch();
+          selectedIds.value = [];
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    })
+    .catch(() => {
+      // 处理取消点击
+      // ElMessage.info('已取消删除')  // 可选的提示
+    });
 };
 
 // 编辑
 const handleEditItem = (item: any) => {
   // TODO: 跳转到编辑页面
-  router.push("/PersonManage/class");
+  dialogTitle.value = "编辑人脸库";
+  currentLibrary.value = item;
+  dialogVisible.value = true;
 };
-
-// 删除
-const handleDeleteItem = (item: any) => {
-  ElMessageBox.confirm("确定要删除该人脸库吗？", "警告", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
-  }).then(() => {
-    ElMessage.success(`删除成功: ${item.title}`);
+// 详情
+const handleDetailItem = (item: any) => {
+  // TODO: 跳转到编辑页面
+  router.push({
+    path: "/PersonManage/class",
+    query: {
+      id: item.modelDataId,
+      name: item.name,
+    },
   });
 };
 
-// 分页
-const handleSizeChange = (size: number) => {
-  queryParams.value.pageSize = size;
-  handleSearch();
-};
-
-const handleCurrentChange = (page: number) => {
-  queryParams.value.pageNo = page;
+// 弹窗回调
+const handleDialogSuccess = () => {
   handleSearch();
 };
 </script>

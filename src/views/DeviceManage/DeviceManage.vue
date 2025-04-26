@@ -8,13 +8,12 @@
       </h2>
 
       <!-- 搜索表单 -->
-      <!-- 搜索表单 -->
       <div class="mb-6">
-        <div class="grid lg:grid-cols-5 md:grid-cols-3 gap-x-4 gap-y-5">
+        <div class="grid lg:grid-cols-4 md:grid-cols-3 gap-x-4 gap-y-5">
           <div class="flex flex-col">
             <span class="mb-1 text-sm text-text-content">设备名称</span>
             <el-input
-              v-model="queryParams.deviceName"
+              v-model="queryParams.name"
               placeholder="请输入设备名称"
               clearable
             />
@@ -23,26 +22,27 @@
             <span class="mb-1 text-sm text-text-content">状态</span>
             <el-select
               v-model="queryParams.status"
-              placeholder="请选择状态"
+              placeholder="全部"
               clearable
             >
               <el-option label="全部" value="" />
-              <el-option label="在线" value="online" />
-              <el-option label="离线" value="offline" />
+              <el-option label="在线" :value="0" />
+              <el-option label="离线" :value="1" />
+              <el-option label="未检测" :value="2" />
             </el-select>
           </div>
           <div class="flex flex-col">
             <span class="mb-1 text-sm text-text-content">IP地址</span>
             <el-input
-              v-model="queryParams.ipAddress"
+              v-model="queryParams.ip"
               placeholder="请输入IP地址"
               clearable
             />
           </div>
-          <div class="flex flex-col">
+          <!-- <div class="flex flex-col">
             <span class="mb-1 text-sm text-text-content">设备编号</span>
             <el-input
-              v-model="queryParams.deviceNumber"
+              v-model="queryParams.equipmentId"
               placeholder="请输入设备编号"
               clearable
             />
@@ -54,22 +54,22 @@
               placeholder="请输入设备序列号"
               clearable
             />
+          </div> -->
+          <div class="flex justify-end items-center mt-6">
+            <el-button
+              type="primary"
+              class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-primary"
+              @click="handleQuery"
+            >
+              查询
+            </el-button>
+            <el-button
+              class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-btn-secondary !text-white ml-3"
+              @click="handleReset"
+            >
+              重置
+            </el-button>
           </div>
-        </div>
-        <div class="flex mt-6 float-right">
-          <el-button
-            type="primary"
-            class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-primary"
-            @click="handleQuery"
-          >
-            查询
-          </el-button>
-          <el-button
-            class="!border-none !w-[140px] !h-[32px] !rounded-[2px] !bg-btn-secondary !text-white ml-3"
-            @click="handleReset"
-          >
-            重置
-          </el-button>
         </div>
       </div>
 
@@ -88,13 +88,18 @@
           ></div>
           <span class="text-[12px]">{{ btn.text }}</span>
         </button>
+        <input
+          type="file"
+          ref="fileInput"
+          style="display: none"
+          @change="handleImport"
+        />
       </div>
 
       <!-- 表格 -->
       <div class="flex-1 bg-bg-main">
         <el-table
           stripe
-          v-loading="loading"
           :data="tableData"
           style="width: 100%"
           :header-cell-style="{
@@ -122,10 +127,8 @@
           </el-table-column>
           <el-table-column prop="status" label="状态" min-width="100">
             <template #default="{ row }">
-              <span
-                :class="row.status === '离线' ? 'text-red-500' : 'text-primary'"
-              >
-                {{ row.status }}
+              <span :class="statusList[row.status].statusColor">
+                {{ statusList[row.status]?.statusText || "未知" }}
               </span>
             </template>
           </el-table-column>
@@ -138,7 +141,10 @@
                 <el-button link type="primary" @click="handleEdit(row)"
                   >编辑</el-button
                 >
-                <el-button link type="primary" @click="handleDelete(row)"
+                <el-button
+                  link
+                  type="primary"
+                  @click="handleDelete([row.modelDataId])"
                   >删除</el-button
                 >
               </div>
@@ -164,22 +170,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import MainLayout from "@/components/common/MainLayout.vue";
 import type { QueryParams, DeviceInfo } from "@/types/device";
 import { useRouter } from "vue-router";
 import AppPagination from "@/components/common/AppPagination.vue";
+import { equipmentApi } from "@/api";
+import { arrayToUrlParams, downloadFileFromBlob } from "@/utils";
+import moment from "moment";
+onMounted(() => {
+  handleQuery();
+});
+
 const router = useRouter();
-// 加载状态
-const loading = ref(false);
+// 0：在线，1：离线，2：未检测
+const statusList = {
+  0: {
+    statusText: "在线",
+    statusColor: "text-red-500",
+  },
+  1: {
+    statusText: "离线",
+    statusColor: "text-primary",
+  },
+  2: {
+    statusText: "未检测",
+    statusColor: "",
+  },
+};
 
 // 查询参数
 const queryParams = reactive<QueryParams>({
-  deviceName: "",
+  modelDataId: "",
+  name: "",
+  ip: "",
   status: "",
-  ipAddress: "",
-  deviceNumber: "",
+  equipmentId: "",
   serialNumber: "",
   pageNo: 1,
   pageSize: 10,
@@ -187,16 +214,13 @@ const queryParams = reactive<QueryParams>({
 
 // 表格数据
 const multipleSelection = ref([]);
-const selectable = (row) => ![1].includes(row.id);
-const tableData = ref<DeviceInfo[]>([
-  { id: 1, name: "设备名称", status: "离线", ip: "192.168.1.2", port: "8000" },
-  { id: 2, name: "设备名称", status: "在线", ip: "192.168.1.2", port: "8782" },
-]);
-const handleSelectionChange = (val) => {
+const selectable = (row: DeviceInfo) => ![1].includes(row.id);
+const tableData = ref<DeviceInfo[]>([]);
+const handleSelectionChange = (val: []) => {
   multipleSelection.value = val;
 };
 // 总数
-const total = ref(100);
+const total = ref(0);
 
 // 工具栏按钮配置
 const toolbarButtons = computed(() => [
@@ -213,8 +237,9 @@ const toolbarButtons = computed(() => [
     text: "删除",
     icon: "bg-[url(@/assets/images/icon_delete.png)]",
     disabledIcon: "bg-[url(@/assets/images/icon_delete_disabled.png)]",
-    disabled: false,
-    handler: handleDelete,
+    disabled: multipleSelection.value.length <= 0,
+    handler: () =>
+      handleDelete(multipleSelection.value.map((val) => val.modelDataId)),
   },
   {
     key: "import",
@@ -222,7 +247,7 @@ const toolbarButtons = computed(() => [
     icon: "bg-[url(@/assets/images/icon_import.png)]",
     disabledIcon: "bg-[url(@/assets/images/icon_import_disabled.png)]",
     disabled: false,
-    handler: handleImport,
+    handler: () => handleClickImport(),
   },
   {
     key: "export",
@@ -230,32 +255,30 @@ const toolbarButtons = computed(() => [
     icon: "bg-[url(@/assets/images/icon_export.png)]",
     disabledIcon: "bg-[url(@/assets/images/icon_export_disabled.png)]",
     disabled: !tableData.value.length, // 无数据时禁用导出
-    handler: handleExport,
+    handler: () => handleExport(),
   },
 ]);
 
 // 查询
 const handleQuery = async () => {
   try {
-    loading.value = true;
     // TODO: 调用API
-    console.log("查询参数:", queryParams);
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // 模拟请求
+    const res = await equipmentApi.getList(queryParams);
+    tableData.value = res.data?.list;
+    total.value = res.data?.total;
   } catch (error) {
     console.error("查询失败:", error);
-    ElMessage.error("查询失败");
-  } finally {
-    loading.value = false;
   }
 };
 
 // 重置
 const handleReset = () => {
   Object.assign(queryParams, {
-    deviceName: "",
+    modelDataId: "",
+    name: "",
     status: "",
-    ipAddress: "",
-    deviceNumber: "",
+    ip: "",
+    equipmentId: "",
     serialNumber: "",
     pageNo: 1,
   });
@@ -279,32 +302,84 @@ const handleAdd = () => {
   router.push("/DeviceManage/add");
 };
 
-const handleImport = () => {
-  ElMessage.success("点击了导入设备");
+const fileInput = ref<HTMLInputElement | null>(null);
+const handleClickImport = () => {
+  fileInput.value?.click();
+};
+const handleImport = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    let res = await equipmentApi.importEquipments(file);
+    if (res.code === "0") {
+      ElMessage.success("导入设备成功!");
+      handleQuery();
+    }
+    // 重置 input 的值，这样相同文件可以重复上传
+    if (fileInput.value) {
+      fileInput.value.value = "";
+    }
+  } catch (e) {
+    console.log(e);
+    ElMessage.error("导入失败");
+  }
 };
 
-const handleExport = () => {
+const handleExport = async () => {
   if (!tableData.value.length) return;
-  ElMessage.success("点击了导出设备");
+  let res = await equipmentApi.exportEquipments(queryParams);
+  downloadFileFromBlob(res);
+  ElMessage.success("导出成功!");
 };
 
 // 表格操作
 const handleDetail = (row: DeviceInfo) => {
+  router.push({
+    path: "/DeviceManage/add",
+    query: {
+      type: "detail",
+      modelDataId: row.modelDataId,
+    },
+  });
   ElMessage.success(`查看详情：${row.name}`);
 };
 
 const handleEdit = (row: DeviceInfo) => {
-  ElMessage.success(`编辑设备：${row.name}`);
+  router.push({
+    path: "/DeviceManage/add",
+    query: {
+      type: "edit",
+      modelDataId: row.modelDataId,
+    },
+  });
 };
 
-const handleDelete = (row: DeviceInfo) => {
-  ElMessageBox.confirm("确定要删除该设备吗？", "警告", {
+const handleDelete = (item: string[]) => {
+  ElMessageBox.confirm("确定要删除该设备吗？", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning",
-  }).then(() => {
-    ElMessage.success(`删除设备：${row.name}`);
-  });
+  })
+    .then(async () => {
+      try {
+        let params = "";
+        params = arrayToUrlParams("idList", item);
+
+        const res = await equipmentApi.delete(params);
+        if (res.code === "0") {
+          ElMessage.success(`删除成功!`);
+          handleQuery();
+          multipleSelection.value = [];
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    })
+    .catch(() => {
+      // 处理取消点击
+      // ElMessage.info('已取消删除')  // 可选的提示
+    });
 };
 </script>
 

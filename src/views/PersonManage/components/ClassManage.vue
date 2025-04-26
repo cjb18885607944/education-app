@@ -1,9 +1,9 @@
 <!-- views/Personnel/PersonList.vue -->
 <template>
   <MainLayout>
-    <div class="flex-1 flex flex-col h-full px-5">
+    <div class="flex-1 flex flex-col h-full px-5 pb-0">
       <!-- 面包屑 -->
-      <AppBreadcrumb :height="62" :class-name="currentClass" />
+      <AppBreadcrumb :height="62" :class-name="modelName" />
 
       <!-- 搜索区域 -->
       <div class="py-6">
@@ -23,15 +23,15 @@
               placeholder="全部"
               clearable
             >
-              <el-option label="全部" value="" />
-              <el-option label="是" value="1" />
-              <el-option label="否" value="0" />
+              <el-option label="全部" :value="0" />
+              <el-option label="录入" :value="1" />
+              <el-option label="未录入" :value="2" />
             </el-select>
           </div>
           <div class="flex flex-col">
-            <span class="mb-1 text-sm text-text-content">学号/工号</span>
+            <span class="mb-1 text-sm text-text-content">学号</span>
             <el-input
-              v-model="queryParams.number"
+              v-model="queryParams.studentNo"
               placeholder="请输入"
               clearable
             />
@@ -43,9 +43,8 @@
               placeholder="不限"
               clearable
             >
-              <el-option label="不限" value="" />
-              <el-option label="启用" value="1" />
-              <el-option label="停用" value="0" />
+              <el-option label="停用" :value="0" />
+              <el-option label="启用" :value="1" />
             </el-select>
           </div>
           <div class="flex flex-0 items-center mt-6 justify-end">
@@ -76,8 +75,11 @@
           添加人员
         </button>
         <button
-          class="flex items-center text-xs text-text-main hover:text-primary mr-6"
-          @click="handleDelete"
+          class="flex items-center text-xs text-text-main hover:text-primary mr-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="multipleSelection.length <= 0"
+          @click="
+            () => handleDelete(multipleSelection.map((val) => val.modelDataId))
+          "
         >
           <div
             class="w-[18px] h-[18px] mr-2 bg-[url(@/assets/images/icon_delete.png)] bg-no-repeat bg-center bg-contain"
@@ -86,15 +88,22 @@
         </button>
         <button
           class="flex items-center text-xs text-text-main hover:text-primary mr-6"
-          @click="handleImport"
+          @click="handleClickImport"
         >
           <div
             class="w-[18px] h-[18px] mr-2 bg-[url(@/assets/images/icon_import.png)] bg-no-repeat bg-center bg-contain"
           />
           导入
         </button>
+        <input
+          type="file"
+          ref="fileInput"
+          style="display: none"
+          @change="handleImport"
+        />
         <button
-          class="flex items-center text-xs text-text-main hover:text-primary mr-6"
+          class="flex items-center text-xs text-text-main hover:text-primary mr-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="tableData.length <= 0"
           @click="handleExport"
         >
           <div
@@ -123,10 +132,26 @@
             width="55"
           />
           <el-table-column prop="name" label="人员姓名" min-width="120" />
-          <el-table-column prop="number" label="学号/工号" min-width="150" />
+          <el-table-column prop="studentNo" label="学号/工号" min-width="150" />
           <el-table-column label="人脸" min-width="100">
             <template #default="{ row }">
-              <span :class="row.hasFace ? 'text-primary' : 'text-red-500'">
+              <el-image
+                v-if="row.facePic"
+                :preview-teleported="true"
+                hide-on-click-modal
+                style="height: 40px"
+                :src="row.facePic"
+                :zoom-rate="1.2"
+                :max-scale="7"
+                :min-scale="0.2"
+                :preview-src-list="[row.facePic]"
+                :initial-index="4"
+                fit="cover"
+              />
+              <span
+                v-else
+                :class="row.facePic ? 'text-primary' : 'text-red-500'"
+              >
                 {{ row.hasFace ? "已录入" : "无" }}
               </span>
             </template>
@@ -136,17 +161,20 @@
               <span>{{ row.status === "1" ? "启用" : "停用" }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="300" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
               <div class="flex items-center space-x-4">
-                <el-button link type="primary" @click="handleDetail(row)"
+                <!-- <el-button link type="primary" @click="handleDetail(row)"
                   >禁用账号</el-button
-                >
+                > -->
                 <el-button link type="primary" @click="handleEdit(row)"
                   >编辑</el-button
                 >
-                <el-button link type="primary" @click="handleDelete(row)"
-                  >删除账号</el-button
+                <el-button
+                  link
+                  type="primary"
+                  @click="handleDelete([row.modelDataId])"
+                  >删除</el-button
                 >
               </div>
             </template>
@@ -179,35 +207,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import moment from "moment";
+import { ref, reactive, onMounted, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import AppPagination from "@/components/common/AppPagination.vue";
+import PersonDialog from "./PersonDialog";
 import MainLayout from "@/components/common/MainLayout.vue";
 import AppBreadcrumb from "@/components/common/AppBreadcrumb.vue";
-import AppPagination from "@/components/common/AppPagination.vue";
-import PersonDialog from "./components/PersonDialog.vue";
+import { studentApi } from "@/api";
+import { useRoute } from "vue-router";
+import { arrayToUrlParams, downloadFileFromBlob } from "@/utils";
+
+const route = useRoute();
+const modelId = ref("");
+const modelName = ref("");
+
+onMounted(() => {
+  let query = route.query;
+  modelId.value = query.id;
+  modelName.value = query.name;
+  handleSearch();
+});
 
 // 查询参数
-const queryParams = reactive({
+const queryParams = ref({
   name: "",
-  hasFace: "",
-  number: "",
+  hasFace: 0,
+  studentNo: "",
   status: "",
   pageNo: 1,
   pageSize: 10,
 });
-const currentClass = "xxx班级";
 // 表格数据
 const multipleSelection = ref([]);
 const selectable = (row) => ![1].includes(row.id);
-const tableData = ref([
-  { id: 1, name: "张三", number: "2024011234", hasFace: true, status: "1" },
-  { id: 2, name: "李四", number: "2024011235", hasFace: false, status: "1" },
-]);
+const tableData = ref([]);
 const handleSelectionChange = (val) => {
   multipleSelection.value = val;
 };
 
-const total = ref(800);
+const total = ref(0);
 
 // 弹窗控制
 const dialogVisible = ref(false);
@@ -215,31 +254,44 @@ const dialogType = ref<"add" | "edit">("add");
 const editData = ref({});
 
 // 查询
-const handleSearch = () => {
-  queryParams.pageNo = 1;
+const handleSearch = async () => {
   // TODO: 加载数据
+  try {
+    let params = {
+      ...queryParams.value,
+      modelDataId: modelId.value,
+    };
+    const res = await studentApi.getList(params);
+    if (res.code === "0" && res.data.list.length) {
+      tableData.value = res.data.list;
+      total.value = res.data.total;
+    }
+  } catch (e) {
+    console.log(e);
+  }
 };
 
 // 重置
 const handleReset = () => {
-  Object.assign(queryParams, {
+  queryParams.value = {
     name: "",
-    hasFace: "",
-    number: "",
+    hasFace: 0,
+    studentNo: "",
     status: "",
     pageNo: 1,
-  });
+    pageSize: 10,
+  };
   handleSearch();
 };
 
 // 分页
 const handleSizeChange = (size: number) => {
-  queryParams.pageSize = size;
+  queryParams.value.pageSize = size;
   handleSearch();
 };
 
 const handleCurrentChange = (page: number) => {
-  queryParams.pageNo = page;
+  queryParams.value.pageNo = page;
   handleSearch();
 };
 
@@ -251,12 +303,27 @@ const handleAdd = () => {
 };
 
 // 导入
-const handleImport = () => {
-  // TODO: 实现导入逻辑
+const fileInput = ref<HTMLInputElement | null>(null);
+const handleClickImport = () => {
+  fileInput.value?.click();
 };
-// 导入
-const handleExport = () => {
-  // TODO: 实现导入逻辑
+const handleImport = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append("file", file);
+  let res = await studentApi.importStudents(formData);
+  if (res.code === "0") {
+    ElMessage.success("点击了导入设备");
+    handleSearch();
+  }
+};
+const handleExport = async () => {
+  if (!tableData.value.length) return;
+  let res = await studentApi.exportStudents(queryParams.value);
+  downloadFileFromBlob(res);
+  ElMessage.success("导出成功!");
 };
 
 // 编辑
@@ -267,14 +334,31 @@ const handleEdit = (row: any) => {
 };
 
 // 删除
-const handleDelete = (row: any) => {
-  ElMessageBox.confirm("确定要删除该账号吗？", "警告", {
+const handleDelete = async (item: string[]) => {
+  ElMessageBox.confirm("确定要删除该账号吗？", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning",
-  }).then(() => {
-    ElMessage.success("删除成功");
-  });
+  })
+    .then(async () => {
+      try {
+        let params = "";
+        params = arrayToUrlParams("idList", item);
+
+        const res = await studentApi.delete(params);
+        if (res.code === "0") {
+          ElMessage.success(`删除成功!`);
+          handleSearch();
+          multipleSelection.value = [];
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    })
+    .catch(() => {
+      // 处理取消点击
+      // ElMessage.info('已取消删除')  // 可选的提示
+    });
 };
 
 // 弹窗回调

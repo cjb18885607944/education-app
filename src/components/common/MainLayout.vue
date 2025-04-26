@@ -15,27 +15,17 @@
             'group flex items-center h-10 rounded mb-2 px-4 cursor-pointer',
             isActive(menu)
               ? 'bg-primary text-menu-active'
-              : 'text-text-main hover:bg-primary hover:text-white',
+              : 'text-secondary hover:bg-primary hover:text-white',
             menu.meta.showNavigate ? '' : 'hidden',
           ]"
           @click="handleMenuClick(menu.path)"
           @mouseenter="hoveredPath = menu.path"
           @mouseleave="hoveredPath = ''"
         >
-          <div class="relative w-5 h-5 mr-2.5">
-            <!-- 默认图标 -->
-            <div
-              class="absolute inset-0 bg-no-repeat bg-center bg-contain"
-              :class="menu.icon"
-              v-show="!isActive(menu) && hoveredPath !== menu.path"
-            ></div>
-            <!-- 激活态图标 -->
-            <div
-              class="absolute inset-0 bg-no-repeat bg-center bg-contain"
-              :class="menu.activeIcon"
-              v-show="isActive(menu) || hoveredPath === menu.path"
-            ></div>
-          </div>
+          <div
+            class="relative w-5 h-5 mr-2.5"
+            v-html="menuIcons[menu.path]"
+          ></div>
           <span class="text-sm">{{ menu.meta.title }}</span>
         </div>
       </div>
@@ -73,23 +63,42 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import { routerConfig } from "@/router/config";
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { loadSvgContent } from "@/utils";
 const hoveredPath = ref("");
 const route = useRoute();
 const router = useRouter();
 
-// 判断菜单是否激活
-const isActive = (menu) => {
-  console.log(
-    route.meta.title,
-    "---",
-    menu.meta.breadcrumb,
-    "--",
-    menu.meta.breadcrumb.includes(route.meta.title)
-  );
+const menuIcons = ref<Record<string, string>>({});
 
+onMounted(async () => {
+  for (const menu of routerConfig) {
+    if (menu.icon) {
+      menuIcons.value[menu.path] = await loadSvgContent(
+        menu.icon.default || menu.icon
+      );
+    }
+  }
+});
+
+// 判断菜单是否激活
+const isActive = useMemoize((menu) => {
   return route.meta.breadcrumb.includes(menu.meta.title);
-};
+});
+
+function useMemoize<T extends (...args: any[]) => any>(fn: T) {
+  const cache = new Map();
+
+  return (...args: Parameters<T>): ReturnType<T> => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+  };
+}
 
 // 处理菜单点击
 const handleMenuClick = (path: string) => {

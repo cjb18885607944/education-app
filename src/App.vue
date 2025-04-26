@@ -2,26 +2,27 @@
   <router-view />
 </template>
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 
 onMounted(() => {
-  window.addEventListener("error", (e) => {
+  const handler = (e) => {
     if (
       e.message ===
       "ResizeObserver loop completed with undelivered notifications."
     ) {
-      e.stopImmediatePropagation();
+      const resizeObserverError =
+        e instanceof Error && e.message.includes("ResizeObserver");
+      if (resizeObserverError) {
+        e.stopImmediatePropagation();
+      }
     }
+  };
+
+  window.addEventListener("error", handler);
+
+  onUnmounted(() => {
+    window.removeEventListener("error", handler);
   });
 });
 </script>
-<style lang="scss">
-:root {
-  --el-color-primary: #91bddf;
-  --el-button-border-color: #91bddf;
-}
-:deep(.el-button) {
-  height: 32px;
-  border: none;
-}
-</style>
+<style lang="scss"></style>
